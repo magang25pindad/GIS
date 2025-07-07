@@ -178,6 +178,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // Initialize map
+            // Initialize map
             var map = L.map('map').setView([-8.173358, 112.684885], 17);
 
             // Tile Layer
@@ -185,6 +186,7 @@
                 maxZoom: 20,
                 attribution: 'Map data © Google'
             }).addTo(map);
+
 
             // Phone nodes data
             const nodes = [

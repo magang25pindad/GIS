@@ -1,0 +1,398 @@
+-- ===============================================
+-- DATABASE STRUCTURE - PHONE MONITORING SYSTEM
+-- ===============================================
+
+-- 1. TABEL BUILDINGS (Gedung)
+CREATE TABLE buildings (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(50) UNIQUE NOT NULL, -- Kode gedung (misal: GD001, GD002)
+    address TEXT,
+    latitude DECIMAL(10, 8) NOT NULL,
+    longitude DECIMAL(11, 8) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_code (code),
+    INDEX idx_coordinates (latitude, longitude),
+    INDEX idx_active (is_active)
+);
+
+-- 2. TABEL PHONES (Telepon/PBX)
+CREATE TABLE phones (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    building_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(50) UNIQUE NOT NULL, -- Kode telepon (misal: TEL001, TEL002)
+    ip_address VARCHAR(45) NOT NULL,
+    port INT DEFAULT 5060,
+    phone_type ENUM('PBX', 'IP_PHONE', 'GATEWAY') DEFAULT 'IP_PHONE',
+    brand VARCHAR(100), -- Merk telepon (Cisco, Yealink, dll)
+    model VARCHAR(100), -- Model telepon
+    mac_address VARCHAR(17), -- MAC address untuk tracking
+    extension VARCHAR(20), -- Nomor extension
+    department VARCHAR(100), -- Departemen yang menggunakan
+    location_detail VARCHAR(255), -- Lokasi detail dalam gedung (Lt.2 Ruang 201)
+    status ENUM('online', 'offline', 'unknown') DEFAULT 'unknown',
+    last_check TIMESTAMP NULL,
+    last_online TIMESTAMP NULL,
+    response_time INT DEFAULT 0, -- Response time terakhir dalam ms
+    uptime_percentage DECIMAL(5,2) DEFAULT 0.00, -- Persentase uptime
+    is_active BOOLEAN DEFAULT TRUE,
+    is_monitored BOOLEAN DEFAULT TRUE, -- Apakah dimonitor atau tidak
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE,
+    INDEX idx_building (building_id),
+    INDEX idx_ip (ip_address),
+    INDEX idx_status (status),
+    INDEX idx_code (code),
+    INDEX idx_active (is_active),
+    INDEX idx_monitored (is_monitored),
+    INDEX idx_last_check (last_check)
+);
+
+-- 3. TABEL PHONE_LOGS (Log Status Telepon)
+CREATE TABLE phone_logs (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    phone_id BIGINT UNSIGNED NOT NULL,
+    status ENUM('online', 'offline', 'timeout', 'error') NOT NULL,
+    previous_status ENUM('online', 'offline', 'timeout', 'error', 'unknown'),
+    response_time INT, -- Response time dalam ms
+    error_message TEXT, -- Pesan error jika ada
+    check_method ENUM('ping', 'tcp', 'snmp', 'api') DEFAULT 'tcp',
+    checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (phone_id) REFERENCES phones(id) ON DELETE CASCADE,
+    INDEX idx_phone_id (phone_id),
+    INDEX idx_status (status),
+    INDEX idx_checked_at (checked_at),
+    INDEX idx_phone_status (phone_id, status),
+    INDEX idx_phone_date (phone_id, checked_at)
+);
+
+-- 4. TABEL NOTIFICATIONS (Notifikasi)
+CREATE TABLE notifications (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    phone_id BIGINT UNSIGNED NOT NULL,
+    type ENUM('status_change', 'downtime_alert', 'recovery', 'maintenance') NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    severity ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+    status ENUM('pending', 'sent', 'failed', 'acknowledged') DEFAULT 'pending',
+    sent_to TEXT, -- JSON array channel yang dikirim (telegram, email, sms)
+    sent_at TIMESTAMP NULL,
+    acknowledged_at TIMESTAMP NULL,
+    acknowledged_by VARCHAR(255), -- User yang acknowledge
+    retry_count INT DEFAULT 0,
+    metadata JSON, -- Data tambahan (chat_id, message_id, dll)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (phone_id) REFERENCES phones(id) ON DELETE CASCADE,
+    INDEX idx_phone_id (phone_id),
+    INDEX idx_type (type),
+    INDEX idx_status (status),
+    INDEX idx_severity (severity),
+    INDEX idx_created_at (created_at)
+);
+
+-- 5. TABEL DOWNTIME_REPORTS (Laporan Downtime)
+CREATE TABLE downtime_reports (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    phone_id BIGINT UNSIGNED NOT NULL,
+    started_at TIMESTAMP NOT NULL,
+    ended_at TIMESTAMP NULL,
+    duration INT, -- Durasi downtime dalam detik
+    reason TEXT, -- Alasan downtime jika diketahui
+    impact_level ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+    affected_users INT DEFAULT 0, -- Jumlah user yang terdampak
+    resolution_notes TEXT, -- Catatan resolusi
+    resolved_by VARCHAR(255), -- User yang resolve
+    is_scheduled BOOLEAN DEFAULT FALSE, -- Apakah maintenance terjadwal
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (phone_id) REFERENCES phones(id) ON DELETE CASCADE,
+    INDEX idx_phone_id (phone_id),
+    INDEX idx_started_at (started_at),
+    INDEX idx_duration (duration),
+    INDEX idx_impact (impact_level),
+    INDEX idx_scheduled (is_scheduled)
+);
+
+-- 6. TABEL MONITORING_SCHEDULES (Jadwal Monitoring)
+CREATE TABLE monitoring_schedules (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    check_interval INT NOT NULL, -- Interval checking dalam detik
+    timeout_seconds INT DEFAULT 5,
+    retry_count INT DEFAULT 3,
+    retry_delay INT DEFAULT 5, -- Delay retry dalam detik
+    active_hours_start TIME DEFAULT '00:00:00',
+    active_hours_end TIME DEFAULT '23:59:59',
+    active_days VARCHAR(20) DEFAULT '1,2,3,4,5,6,7', -- Hari aktif (1=Senin, 7=Minggu)
+    notification_delay INT DEFAULT 0, -- Delay notifikasi dalam detik
+    escalation_time INT DEFAULT 300, -- Waktu eskalasi dalam detik
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_active (is_active),
+    INDEX idx_interval (check_interval)
+);
+
+-- 7. TABEL PHONE_MONITORING_SCHEDULES (Relasi Phone dan Schedule)
+CREATE TABLE phone_monitoring_schedules (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    phone_id BIGINT UNSIGNED NOT NULL,
+    schedule_id BIGINT UNSIGNED NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (phone_id) REFERENCES phones(id) ON DELETE CASCADE,
+    FOREIGN KEY (schedule_id) REFERENCES monitoring_schedules(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_phone_schedule (phone_id, schedule_id),
+    INDEX idx_phone_id (phone_id),
+    INDEX idx_schedule_id (schedule_id)
+);
+
+-- 8. TABEL NOTIFICATION_CHANNELS (Channel Notifikasi)
+CREATE TABLE notification_channels (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    type ENUM('telegram', 'email', 'sms', 'webhook', 'slack') NOT NULL,
+    config JSON NOT NULL, -- Konfigurasi channel (bot_token, chat_id, dll)
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_type (type),
+    INDEX idx_active (is_active)
+);
+
+-- 9. TABEL USERS (User Management)
+CREATE TABLE users (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    email_verified_at TIMESTAMP NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'operator', 'viewer') DEFAULT 'viewer',
+    telegram_chat_id VARCHAR(255), -- Chat ID Telegram untuk notifikasi personal
+    phone_number VARCHAR(20), -- Nomor telepon untuk SMS
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login TIMESTAMP NULL,
+    remember_token VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_email (email),
+    INDEX idx_role (role),
+    INDEX idx_active (is_active)
+);
+
+-- 10. TABEL USER_NOTIFICATION_PREFERENCES (Preferensi Notifikasi User)
+CREATE TABLE user_notification_preferences (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    building_id BIGINT UNSIGNED, -- NULL = all buildings
+    notification_types JSON NOT NULL, -- Array tipe notifikasi yang ingin diterima
+    channels JSON NOT NULL, -- Array channel yang ingin digunakan
+    severity_threshold ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+    quiet_hours_start TIME,
+    quiet_hours_end TIME,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_building_id (building_id)
+);
+
+-- 11. TABEL MAINTENANCE_SCHEDULES (Jadwal Maintenance)
+CREATE TABLE maintenance_schedules (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    scheduled_start TIMESTAMP NOT NULL,
+    scheduled_end TIMESTAMP NOT NULL,
+    actual_start TIMESTAMP NULL,
+    actual_end TIMESTAMP NULL,
+    status ENUM('scheduled', 'in_progress', 'completed', 'cancelled') DEFAULT 'scheduled',
+    created_by BIGINT UNSIGNED,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_scheduled_start (scheduled_start),
+    INDEX idx_status (status)
+);
+
+-- 12. TABEL MAINTENANCE_PHONES (Relasi Maintenance dan Phones)
+CREATE TABLE maintenance_phones (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    maintenance_id BIGINT UNSIGNED NOT NULL,
+    phone_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (maintenance_id) REFERENCES maintenance_schedules(id) ON DELETE CASCADE,
+    FOREIGN KEY (phone_id) REFERENCES phones(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_maintenance_phone (maintenance_id, phone_id)
+);
+
+-- ===============================================
+-- SAMPLE DATA
+-- ===============================================
+
+-- Insert sample buildings
+INSERT INTO buildings (name, code, address, latitude, longitude, description) VALUES
+('Gedung Utama', 'GD001', 'Jl. Raya No. 123, Surabaya', -7.2575, 112.7521, 'Gedung kantor utama'),
+('Gedung Annex', 'GD002', 'Jl. Raya No. 125, Surabaya', -7.2580, 112.7525, 'Gedung tambahan'),
+('Warehouse', 'GD003', 'Jl. Industri No. 45, Surabaya', -7.2590, 112.7530, 'Gudang dan logistik');
+
+-- Insert sample monitoring schedule
+INSERT INTO monitoring_schedules (name, description, check_interval, timeout_seconds, retry_count) VALUES
+('Standard Monitoring', 'Monitoring standar untuk semua telepon', 120, 5, 3),
+('Critical Monitoring', 'Monitoring untuk telepon kritis', 60, 3, 5);
+
+-- Insert sample notification channels
+INSERT INTO notification_channels (name, type, config) VALUES
+('Telegram Main', 'telegram', '{"bot_token": "your_bot_token", "chat_id": "your_chat_id"}'),
+('Email Alert', 'email', '{"smtp_host": "smtp.gmail.com", "smtp_port": 587, "username": "alert@company.com"}');
+
+-- Insert sample phones
+INSERT INTO phones (building_id, name, code, ip_address, port, phone_type, brand, model, extension, department, location_detail) VALUES
+(1, 'Reception Phone', 'TEL001', '192.168.1.101', 5060, 'IP_PHONE', 'Cisco', 'CP-7965G', '101', 'Reception', 'Lantai 1 - Reception Desk'),
+(1, 'IT Department', 'TEL002', '192.168.1.102', 5060, 'IP_PHONE', 'Yealink', 'T46G', '201', 'IT', 'Lantai 2 - IT Room'),
+(1, 'PBX Server', 'PBX001', '192.168.1.100', 5060, 'PBX', 'Asterisk', 'FreePBX', '0', 'IT', 'Server Room'),
+(2, 'HR Department', 'TEL003', '192.168.1.201', 5060, 'IP_PHONE', 'Grandstream', 'GXP2160', '301', 'HR', 'Lantai 1 - HR Office'),
+(3, 'Security Post', 'TEL004', '192.168.1.301', 5060, 'IP_PHONE', 'Cisco', 'CP-7940G', '401', 'Security', 'Security Post - Main Gate');
+
+-- ===============================================
+-- INDEXES UNTUK OPTIMASI QUERY
+-- ===============================================
+
+-- Composite indexes untuk query yang sering digunakan
+CREATE INDEX idx_phones_building_status ON phones(building_id, status);
+CREATE INDEX idx_phones_active_monitored ON phones(is_active, is_monitored);
+CREATE INDEX idx_logs_phone_date_status ON phone_logs(phone_id, checked_at, status);
+CREATE INDEX idx_notifications_phone_status ON notifications(phone_id, status);
+
+-- Indexes untuk dashboard queries
+CREATE INDEX idx_phones_last_check_status ON phones(last_check, status);
+CREATE INDEX idx_downtime_phone_started ON downtime_reports(phone_id, started_at);
+
+-- ===============================================
+-- VIEWS UNTUK REPORTING
+-- ===============================================
+
+-- View untuk dashboard summary
+CREATE VIEW dashboard_summary AS
+SELECT 
+    b.id as building_id,
+    b.name as building_name,
+    b.code as building_code,
+    COUNT(p.id) as total_phones,
+    SUM(CASE WHEN p.status = 'online' THEN 1 ELSE 0 END) as online_phones,
+    SUM(CASE WHEN p.status = 'offline' THEN 1 ELSE 0 END) as offline_phones,
+    ROUND(AVG(p.response_time), 2) as avg_response_time,
+    ROUND(AVG(p.uptime_percentage), 2) as avg_uptime
+FROM buildings b
+LEFT JOIN phones p ON b.id = p.building_id AND p.is_active = 1
+WHERE b.is_active = 1
+GROUP BY b.id, b.name, b.code;
+
+-- View untuk phone details dengan building info
+CREATE VIEW phone_details AS
+SELECT 
+    p.*,
+    b.name as building_name,
+    b.code as building_code,
+    b.address as building_address,
+    b.latitude,
+    b.longitude,
+    CASE 
+        WHEN p.last_check IS NULL THEN 'Never Checked'
+        WHEN p.last_check < DATE_SUB(NOW(), INTERVAL 10 MINUTE) THEN 'Outdated'
+        ELSE 'Recent'
+    END as check_status
+FROM phones p
+JOIN buildings b ON p.building_id = b.id
+WHERE p.is_active = 1;
+
+
+------------------------------------------------------
+Jika Anda menggunakan Laravel Breeze, maka tabel `users` sudah disediakan secara default oleh Laravel. Laravel Breeze menyediakan sistem otentikasi dasar, termasuk tabel `users` dengan kolom yang diperlukan untuk manajemen pengguna. Berikut adalah struktur tabel `users` yang biasanya dihasilkan oleh Laravel Breeze:
+
+### Tabel: `users`
+
+```sql
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    email_verified_at TIMESTAMP NULL,
+    password VARCHAR(255) NOT NULL,
+    remember_token VARCHAR(100) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+### Penjelasan Kolom
+
+- **id**: ID unik untuk setiap pengguna.
+- **name**: Nama pengguna.
+- **email**: Email pengguna, harus unik.
+- **email_verified_at**: Waktu verifikasi email (jika menggunakan verifikasi email).
+- **password**: Password terenkripsi untuk keamanan.
+- **remember_token**: Token untuk fitur "ingat saya" saat login.
+- **created_at**: Waktu pembuatan akun.
+- **updated_at**: Waktu pembaruan akun.
+
+### Integrasi dengan Tabel Lain
+
+Karena Anda sudah memiliki tabel `users`, Anda dapat menghubungkan tabel `phones` dan `activity_logs` dengan pengguna yang relevan. Misalnya, Anda dapat menambahkan kolom `user_id` di tabel `phones` untuk menunjukkan siapa yang bertanggung jawab atas telepon tersebut.
+
+### Tabel: `phones` (diperbarui)
+
+```sql
+CREATE TABLE phones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    name VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    status ENUM('online', 'offline') NOT NULL,
+    last_ping DATETIME NOT NULL,
+    uptime DECIMAL(5,2) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
+### Tabel: `activity_logs` (diperbarui)
+
+Anda juga dapat menambahkan kolom `user_id` di tabel `activity_logs` untuk mencatat siapa yang melakukan tindakan tertentu.
+
+```sql
+CREATE TABLE activity_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    phone_id INT,
+    user_id INT,
+    action VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (phone_id) REFERENCES phones(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+```
+
+### Kesimpulan
+
+Dengan menggunakan Laravel Breeze, Anda sudah memiliki tabel `users` yang siap digunakan. Anda dapat menyesuaikan tabel `phones` dan `activity_logs` untuk menghubungkan data dengan pengguna yang relevan. Pastikan untuk mengatur relasi dan kunci asing dengan benar untuk menjaga integritas data dalam aplikasi Anda.
