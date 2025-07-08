@@ -52,7 +52,7 @@
 
             <!-- Page Heading -->
             @isset($header)
-                <header class="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50">
+                <header class="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-40 ">
                     <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-phone-alt text-2xl text-indigo-500"></i>

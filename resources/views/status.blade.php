@@ -827,3 +827,751 @@
     </script>
 </body>
 </html>
+
+ <!-- manage.blade.php----------------------------------------------------------------------------- -->
+
+ <!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaflet CRUD System - Building & Phone Management</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white/95;
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #feca57 0%, #ff9ff3 100%);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #48dbfb 0%, #0abde3 100%);
+        }
+        
+        #map {
+            height: 400px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .status-list {
+            max-height: 400px;
+            overflow-y: auto;
+            space-y: 10px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        
+        .status-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .online { background: #10b981; }
+        .offline { background: #ef4444; }
+        .partial { background: #f59e0b; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .nodes-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .nodes-table th, .nodes-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .nodes-table th {
+            background: rgba(102, 126, 234, 0.1);
+            font-weight: 600;
+        }
+        
+        .nodes-table tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .animate-pulse { animation: pulse 2s infinite; }
+        
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1 style="margin: 0; color: #374151; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-building"></i>
+                Sistem Manajemen Gedung & Telepon
+            </h1>
+            <p style="margin: 10px 0 0 0; color: #6b7280;">Kelola lokasi gedung dan monitor status telepon secara real-time</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Map Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 style="margin: 0; color: #374151; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Peta Gedung & Status Telepon
+                    </h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" onclick="openAddModal()">
+                            <i class="fas fa-plus"></i>
+                            Tambah Node
+                        </button>
+                        <button class="btn" onclick="refreshMap()">
+                            <i class="fas fa-sync-alt"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="map"></div>
+                
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-dot online animate-pulse"></div>
+                        <span>Online</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot offline"></div>
+                        <span>Offline</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot partial"></div>
+                        <span>Partial</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status List -->
+            <div class="card">
+                <h3 style="margin: 0 0 20px 0; color: #374151; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-list"></i>
+                    Status Real-time
+                </h3>
+                
+                <div class="status-list" id="phone-status-list">
+                    <!-- Status items will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Nodes Management Table -->
+        <div class="card">
+            <h3 style="margin: 0 0 20px 0; color: #374151; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-table"></i>
+                Manajemen Node
+            </h3>
+            
+            <table class="nodes-table" id="nodes-table">
+                <thead>
+                    <tr>
+                        <th>Nama Gedung</th>
+                        <th>IP Address</th>
+                        <th>Status</th>
+                        <th>Koordinat</th>
+                        <th>Uptime</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="nodes-table-body">
+                    <!-- Table rows will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="nodeModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-title" style="margin: 0 0 20px 0; color: #374151;">Tambah Node Baru</h3>
+            <form id="nodeForm">
+                <div class="form-group">
+                    <label for="nodeName">Nama Gedung:</label>
+                    <input type="text" id="nodeName" name="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="nodeIP">IP Address:</label>
+                    <input type="text" id="nodeIP" name="ip" required pattern="^(\d{1,3}\.){3}\d{1,3}$">
+                </div>
+                
+                <div class="form-group">
+                    <label for="nodeStatus">Status:</label>
+                    <select id="nodeStatus" name="status" required>
+                        <option value="online">Online</option>
+                        <option value="offline">Offline</option>
+                        <option value="partial">Partial</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="nodeLatitude">Latitude:</label>
+                    <input type="number" id="nodeLatitude" name="latitude" step="any" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="nodeLongitude">Longitude:</label>
+                    <input type="number" id="nodeLongitude" name="longitude" step="any" required>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-danger" onclick="closeModal()">
+                        <i class="fas fa-times"></i>
+                        Batal
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i>
+                        Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    
+    <script>
+        // Global variables
+        let map;
+        let markers = [];
+        let nodes = [
+            { 
+                id: 1,
+                name: 'Gedung A', 
+                coords: [-8.173500, 112.684700], 
+                status: 'online',
+                ip: '192.168.1.101',
+                lastPing: '2s ago',
+                uptime: '99.8%'
+            },
+            { 
+                id: 2,
+                name: 'Gedung B', 
+                coords: [-8.173100, 112.684200], 
+                status: 'offline',
+                ip: '192.168.1.102',
+                lastPing: '5m ago',
+                uptime: '85.2%'
+            },
+            { 
+                id: 3,
+                name: 'Gedung C', 
+                coords: [-8.172800, 112.685000], 
+                status: 'online',
+                ip: '192.168.1.103',
+                lastPing: '1s ago',
+                uptime: '99.9%'
+            }
+        ];
+        let editingNodeId = null;
+        let nextNodeId = 4;
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([-8.173358, 112.684885], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 20,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Add click event to map for adding nodes
+            map.on('click', function(e) {
+                if (confirm('Tambah node baru di lokasi ini?')) {
+                    document.getElementById('nodeLatitude').value = e.latlng.lat.toFixed(6);
+                    document.getElementById('nodeLongitude').value = e.latlng.lng.toFixed(6);
+                    openAddModal();
+                }
+            });
+
+            updateMapMarkers();
+        }
+
+        // Update map markers
+        function updateMapMarkers() {
+            // Clear existing markers
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+
+            // Add new markers
+            nodes.forEach(function(node) {
+                const color = getStatusColor(node.status);
+                
+                const marker = L.circleMarker(node.coords, {
+                    radius: 12,
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.8,
+                    weight: 3
+                }).addTo(map);
+
+                const popupContent = `
+                    <div style="font-family: sans-serif; padding: 10px; min-width: 200px;">
+                        <h4 style="margin: 0 0 10px 0; color: #374151;">${node.name}</h4>
+                        <div style="display: grid; gap: 5px; font-size: 13px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Status:</span>
+                                <span style="font-weight: bold; color: ${color};">${node.status}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>IP:</span>
+                                <span style="font-family: monospace;">${node.ip}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Last Ping:</span>
+                                <span>${node.lastPing}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Uptime:</span>
+                                <span style="font-weight: bold;">${node.uptime}</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px; display: flex; gap: 5px;">
+                            <button onclick="editNode(${node.id})" style="padding: 5px 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button onclick="deleteNode(${node.id})" style="padding: 5px 10px; background: #ef4444; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                <i class="fas fa-trash"></i> Hapus
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+                markers.push(marker);
+            });
+        }
+
+        // Get status color
+        function getStatusColor(status) {
+            switch(status) {
+                case 'online': return '#10b981';
+                case 'offline': return '#ef4444';
+                case 'partial': return '#f59e0b';
+                default: return '#6b7280';
+            }
+        }
+
+        // Update status list
+        function updateStatusList() {
+            const statusList = document.getElementById('phone-status-list');
+            statusList.innerHTML = '';
+
+            nodes.forEach(function(node) {
+                const statusItem = document.createElement('div');
+                statusItem.className = 'status-item';
+                statusItem.onclick = () => focusOnNode(node.id);
+                
+                const statusClass = node.status === 'online' ? 'online animate-pulse' : 
+                                  node.status === 'offline' ? 'offline' : 'partial';
+                
+                statusItem.innerHTML = `
+                    <div class="status-dot ${statusClass}"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #374151;">${node.name}</div>
+                        <div style="font-size: 12px; color: #6b7280;">${node.ip}</div>
+                        <div style="font-size: 11px; color: #9ca3af;">Last ping: ${node.lastPing}</div>
+                    </div>
+                    <div style="text-align: right; font-size: 11px; color: #6b7280;">
+                        <div style="font-weight: bold;">${node.status === 'offline' ? 'Timeout' : '42ms'}</div>
+                        <div>${node.uptime}</div>
+                    </div>
+                `;
+                
+                statusList.appendChild(statusItem);
+            });
+        }
+
+        // Update nodes table
+        function updateNodesTable() {
+            const tableBody = document.getElementById('nodes-table-body');
+            tableBody.innerHTML = '';
+
+            nodes.forEach(function(node) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${node.name}</td>
+                    <td style="font-family: monospace;">${node.ip}</td>
+                    <td>
+                        <span style="display: inline-flex; align-items: center; gap: 5px;">
+                            <div class="status-dot ${node.status}" style="width: 8px; height: 8px;"></div>
+                            ${node.status}
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px;">${node.coords[0].toFixed(4)}, ${node.coords[1].toFixed(4)}</td>
+                    <td>${node.uptime}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-warning btn-small" onclick="editNode(${node.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger btn-small" onclick="deleteNode(${node.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="btn btn-success btn-small" onclick="focusOnNode(${node.id})">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // CRUD Operations
+
+        // Create node
+        function createNode(nodeData) {
+            const newNode = {
+                id: nextNodeId++,
+                name: nodeData.name,
+                coords: [parseFloat(nodeData.latitude), parseFloat(nodeData.longitude)],
+                status: nodeData.status,
+                ip: nodeData.ip,
+                lastPing: nodeData.status === 'online' ? '1s ago' : '5m ago',
+                uptime: nodeData.status === 'online' ? '99.9%' : '85.2%'
+            };
+
+            nodes.push(newNode);
+            updateAll();
+            
+            // Show success message
+            alert('Node berhasil ditambahkan!');
+        }
+
+        // Read/Find node
+        function findNode(id) {
+            return nodes.find(node => node.id === id);
+        }
+
+        // Update node
+        function updateNode(id, nodeData) {
+            const nodeIndex = nodes.findIndex(node => node.id === id);
+            if (nodeIndex !== -1) {
+                nodes[nodeIndex] = {
+                    ...nodes[nodeIndex],
+                    name: nodeData.name,
+                    coords: [parseFloat(nodeData.latitude), parseFloat(nodeData.longitude)],
+                    status: nodeData.status,
+                    ip: nodeData.ip,
+                    lastPing: nodeData.status === 'online' ? '1s ago' : '5m ago',
+                    uptime: nodeData.status === 'online' ? '99.9%' : '85.2%'
+                };
+                updateAll();
+                alert('Node berhasil diperbarui!');
+            }
+        }
+
+        // Delete node
+        function deleteNode(id) {
+            if (confirm('Yakin ingin menghapus node ini?')) {
+                const nodeIndex = nodes.findIndex(node => node.id === id);
+                if (nodeIndex !== -1) {
+                    nodes.splice(nodeIndex, 1);
+                    updateAll();
+                    alert('Node berhasil dihapus!');
+                }
+            }
+        }
+
+        // Modal functions
+        function openAddModal() {
+            document.getElementById('modal-title').textContent = 'Tambah Node Baru';
+            document.getElementById('nodeForm').reset();
+            editingNodeId = null;
+            document.getElementById('nodeModal').style.display = 'block';
+        }
+
+        function editNode(id) {
+            const node = findNode(id);
+            if (node) {
+                document.getElementById('modal-title').textContent = 'Edit Node';
+                document.getElementById('nodeName').value = node.name;
+                document.getElementById('nodeIP').value = node.ip;
+                document.getElementById('nodeStatus').value = node.status;
+                document.getElementById('nodeLatitude').value = node.coords[0];
+                document.getElementById('nodeLongitude').value = node.coords[1];
+                editingNodeId = id;
+                document.getElementById('nodeModal').style.display = 'block';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('nodeModal').style.display = 'none';
+            editingNodeId = null;
+        }
+
+        // Focus on node
+        function focusOnNode(id) {
+            const node = findNode(id);
+            if (node) {
+                map.setView(node.coords, 18);
+                const marker = markers.find(m => m.getLatLng().lat === node.coords[0] && m.getLatLng().lng === node.coords[1]);
+                if (marker) {
+                    marker.openPopup();
+                }
+            }
+        }
+
+        // Update all displays
+        function updateAll() {
+            updateMapMarkers();
+            updateStatusList();
+            updateNodesTable();
+        }
+
+        // Refresh map
+        function refreshMap() {
+            // Simulate status updates
+            nodes.forEach(node => {
+                if (Math.random() > 0.8) { // 20% chance to change status
+                    const statuses = ['online', 'offline', 'partial'];
+                    node.status = statuses[Math.floor(Math.random() * statuses.length)];
+                    node.lastPing = node.status === 'online' ? 
+                        Math.floor(Math.random() * 5) + 's ago' : 
+                        Math.floor(Math.random() * 10) + 'm ago';
+                }
+            });
+            updateAll();
+        }
+
+        // Form submission
+        document.getElementById('nodeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const nodeData = {
+                name: formData.get('name'),
+                ip: formData.get('ip'),
+                status: formData.get('status'),
+                latitude: formData.get('latitude'),
+                longitude: formData.get('longitude')
+            };
+
+            if (editingNodeId) {
+                updateNode(editingNodeId, nodeData);
+            } else {
+                createNode(nodeData);
+            }
+
+            closeModal();
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('nodeModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            updateStatusList();
+            updateNodesTable();
+
+            // Auto refresh every 30 seconds
+            setInterval(refreshMap, 30000);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
