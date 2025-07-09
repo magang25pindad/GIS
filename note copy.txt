@@ -203,21 +203,21 @@
         let map;
         let markers = [];
         let nodes = [ ];
-        
 
 // Fetch data dari server
-fetch('/api/nodes')
-    .then(res => res.json())
-    .then(data => {
-        console.log(data); // tampil data dari DB
-    });
-
 async function fetchNodes() {
     const response = await fetch('/api/nodes'); // Ganti dengan endpoint yang sesuai
     nodes = await response.json();
     updateAll(); // Memperbarui tampilan setelah data diambil
 }
 
+// Panggil fungsi fetchNodes saat halaman dimuat
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    fetchNodes(); // Ambil data nodes dari server
+    // updateStatusList();
+    // updateNodesTable();
+});
 
         let editingNodeId = null;
         let nextNodeId = 4;
