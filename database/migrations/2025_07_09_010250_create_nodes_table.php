@@ -4,26 +4,39 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateNodesTable extends Migration
+return new class extends Migration
 {
-    public function up()
-{
-    Schema::create('nodes', function (Blueprint $table) {
-        $table->id();
-        $table->string('name');
-        $table->string('ip');
-        $table->enum('status', ['online', 'offline', 'partial']);
-        $table->decimal('latitude', 10, 6);
-        $table->decimal('longitude', 10, 6);
-        $table->string('uptime')->nullable();
-        $table->string('last_ping')->nullable();
-        $table->timestamps();
-    });
-}
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('nodes', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->ipAddress('ip_address');
+            $table->enum('status', ['online', 'offline', 'partial'])->default('offline');
+            $table->decimal('latitude', 10, 8);
+            $table->decimal('longitude', 11, 8);
+            $table->timestamp('last_ping')->nullable();
+            $table->decimal('uptime_percentage', 5, 2)->default(0.00);
+            $table->integer('response_time')->nullable(); // in milliseconds
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
 
+            // Indexes
+            $table->index(['status', 'is_active']);
+            $table->index(['latitude', 'longitude']);
+            $table->unique('ip_address');
+        });
+    }
 
-    public function down()
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
     {
         Schema::dropIfExists('nodes');
     }
-}
+};

@@ -2,39 +2,83 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Node;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
 
 class NodeSeeder extends Seeder
 {
-    public function run()
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
     {
-        Node::create([
-            'name' => 'Gedung A',
-            'ip' => '192.168.1.101',
-            'status' => 'online',
-            'latitude' => -8.173500,
-            'longitude' => 112.684700,
-            'uptime' => 99.8,
-        ]);
+        $nodes = [
+            [
+                'name' => 'Gedung A',
+                'ip_address' => '192.168.1.101',
+                'status' => 'online',
+                'latitude' => -8.173358,
+                'longitude' => 112.684885,
+                'description' => 'Gedung Utama - Kantor Pusat',
+                'uptime_percentage' => 99.8,
+                'response_time' => 42,
+                'last_ping' => now()->subSeconds(2),
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Gedung B',
+                'ip_address' => '192.168.1.102',
+                'status' => 'offline',
+                'latitude' => -8.173400,
+                'longitude' => 112.684950,
+                'description' => 'Gedung Annex - Ruang Rapat',
+                'uptime_percentage' => 85.2,
+                'response_time' => null,
+                'last_ping' => now()->subMinutes(5),
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Gedung C',
+                'ip_address' => '192.168.1.103',
+                'status' => 'online',
+                'latitude' => -8.173320,
+                'longitude' => 112.684820,
+                'description' => 'Gedung Pelayanan - Customer Service',
+                'uptime_percentage' => 99.9,
+                'response_time' => 38,
+                'last_ping' => now()->subSecond(),
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Gedung D',
+                'ip_address' => '192.168.1.104',
+                'status' => 'partial',
+                'latitude' => -8.173280,
+                'longitude' => 112.684750,
+                'description' => 'Gedung Teknik - Server Room',
+                'uptime_percentage' => 92.5,
+                'response_time' => 150,
+                'last_ping' => now()->subMinutes(2),
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Gedung E',
+                'ip_address' => '192.168.1.105',
+                'status' => 'online',
+                'latitude' => -8.173450,
+                'longitude' => 112.684900,
+                'description' => 'Gedung Keamanan - Security Center',
+                'uptime_percentage' => 98.7,
+                'response_time' => 35,
+                'last_ping' => now()->subSeconds(3),
+                'is_active' => true,
+            ],
+        ];
 
-        Node::create([
-            'name' => 'Gedung B',
-            'ip' => '192.168.1.102',
-            'status' => 'offline',
-            'latitude' => -8.173100,
-            'longitude' => 112.684200,
-            'uptime' => 85.2,
-        ]);
-
-        Node::create([
-            'name' => 'Gedung C',
-            'ip' => '192.168.1.103',
-            'status' => 'online',
-            'latitude' => -8.172800,
-            'longitude' => 112.685000,
-            'uptime' => 99.9,
-        ]);
+        foreach ($nodes as $node) {
+            $node['is_active'] = true;
+            Node::create($node);
+        }
     }
 }
-

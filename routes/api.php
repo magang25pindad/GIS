@@ -1,12 +1,17 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Database\Connectors;
+use App\Http\Controllers\NodeController;
 
-use App\Http\Controllers\Api\NodeController;
 
-// CRUD API Endpoint
-Route::get('/nodes', [NodeController::class, 'index']);
-Route::post('/nodes', [NodeController::class, 'store']);
-Route::put('/nodes/{node}', [NodeController::class, 'update']);
-Route::delete('/nodes/{node}', [NodeController::class, 'destroy']);
+Route::get('/user', function (Request $request) {
+    return $request->user();
+})->middleware('auth:sanctum');
+
+
+   Route::get('/nodes', [NodeController::class, 'index']);
+   Route::post('/nodes', [NodeController::class, 'store']);
+   Route::get('/nodes/{id}', [NodeController::class, 'show']);
+   Route::put('/nodes/{id}', [NodeController::class, 'update']);
+   Route::delete('/nodes/{id}', [NodeController::class, 'destroy']);

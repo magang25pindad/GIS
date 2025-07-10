@@ -205,19 +205,18 @@
         let nodes = [ ];
         
 
-// Fetch data dari server
-fetch('/api/nodes')
-    .then(res => res.json())
-    .then(data => {
-        console.log(data); // tampil data dari DB
-    });
+        // Fetch data dari server
+        fetch('/api/nodes')
+            .then(res => res.json())
+            .then(data => {
+                console.log(data); // tampil data dari DB
+            });
 
-async function fetchNodes() {
-    const response = await fetch('/api/nodes'); // Ganti dengan endpoint yang sesuai
-    nodes = await response.json();
-    updateAll(); // Memperbarui tampilan setelah data diambil
-}
-
+        async function fetchNodes() {
+            const response = await fetch('/api/nodes');
+            nodes = await response.json();
+            updateAll(); // ✅ render map, table, status list
+        }
 
         let editingNodeId = null;
         let nextNodeId = 4;
@@ -369,6 +368,46 @@ async function fetchNodes() {
             });
         }
 
+        function updateNodesTable() {
+    const tableBody = document.getElementById('nodes-table-body');
+    tableBody.innerHTML = '';
+
+    console.log("Updating nodes table with", nodes.length, "nodes");
+
+    nodes.forEach(function(node) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${node.name}</td>
+            <td style="font-family: monospace;">${node.ip}</td>
+            <td>
+                <span style="display: inline-flex; align-items: center; gap: 5px;">
+                    <div class="status-dot ${node.status}" style="width: 8px; height: 8px;"></div>
+                    ${node.status}
+                </span>
+            </td>
+            <td style="font-family: monospace; font-size: 12px;">
+                ${parseFloat(node.coords[0]).toFixed(4)}, ${parseFloat(node.coords[1]).toFixed(4)}
+            </td>
+            <td>${node.uptime}</td>
+            <td>
+                <div class="action-buttons">
+                    <button class="btn btn-warning btn-small" onclick="editNode(${node.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-danger btn-small" onclick="deleteNode(${node.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="btn btn-success btn-small" onclick="focusOnNode(${node.id})">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+
         // Get status color
         function getStatusColor(status) {
             switch(status) {
@@ -467,7 +506,8 @@ async function deleteNode(id) {
                             ${node.status}
                         </span>
                     </td>
-                    <td style="font-family: monospace; font-size: 12px;">${node.coords[0].toFixed(4)}, ${node.coords[1].toFixed(4)}</td>
+                    <td style="font-family: monospace; font-size: 12px;">${parseFloat(node.coords[0]).toFixed(4)}, ${parseFloat(node.coords[1]).toFixed(4)}</td>
+
                     <td>${node.uptime}</td>
                     <td>
                         <div class="action-buttons">
@@ -490,23 +530,33 @@ async function deleteNode(id) {
         // CRUD Operations
 
         // Create node
-        function createNode(nodeData) {
-            const newNode = {
-                id: nextNodeId++,
-                name: nodeData.name,
-                coords: [parseFloat(nodeData.latitude), parseFloat(nodeData.longitude)],
-                status: nodeData.status,
-                ip: nodeData.ip,
-                lastPing: nodeData.status === 'online' ? '1s ago' : '5m ago',
-                uptime: nodeData.status === 'online' ? '99.9%' : '85.2%'
-            };
+        async function createNode(nodeData) {
+    const response = await fetch('/api/nodes', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(nodeData),
+    });
 
-            nodes.push(newNode);
-            updateAll();
+    if (!response.ok) {
+        const err = await response.json();
+        alert("Gagal menambah node: " + JSON.stringify(err.errors ?? err));
+        return;
+    }
 
-            // Show success message
-            alert('Node berhasil ditambahkan!');
-        }
+    const newNode = await response.json();
+
+    nodes.push({
+        ...newNode,
+        coords: newNode.coords
+    });
+
+    updateAll();
+    alert('Node berhasil ditambahkan!');
+}
+
+
 
         // Read/Find node
         function findNode(id) {
@@ -514,34 +564,53 @@ async function deleteNode(id) {
         }
 
         // Update node
-        function updateNode(id, nodeData) {
-            const nodeIndex = nodes.findIndex(node => node.id === id);
-            if (nodeIndex !== -1) {
-                nodes[nodeIndex] = {
-                    ...nodes[nodeIndex],
-                    name: nodeData.name,
-                    coords: [parseFloat(nodeData.latitude), parseFloat(nodeData.longitude)],
-                    status: nodeData.status,
-                    ip: nodeData.ip,
-                    lastPing: nodeData.status === 'online' ? '1s ago' : '5m ago',
-                    uptime: nodeData.status === 'online' ? '99.9%' : '85.2%'
-                };
-                updateAll();
-                alert('Node berhasil diperbarui!');
-            }
-        }
+        async function updateNode(id, nodeData) {
+    const response = await fetch(`/api/nodes/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(nodeData),
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        alert("Gagal update node: " + JSON.stringify(err.errors ?? err));
+        return;
+    }
+
+    const updated = await response.json();
+    const index = nodes.findIndex(n => n.id === id);
+    if (index !== -1) {
+        nodes[index] = {
+            ...updated,
+            coords: updated.coords
+        };
+    }
+
+    updateAll();
+    alert('Node berhasil diperbarui!');
+}
+
 
         // Delete node
-        function deleteNode(id) {
-            if (confirm('Yakin ingin menghapus node ini?')) {
-                const nodeIndex = nodes.findIndex(node => node.id === id);
-                if (nodeIndex !== -1) {
-                    nodes.splice(nodeIndex, 1);
-                    updateAll();
-                    alert('Node berhasil dihapus!');
-                }
-            }
-        }
+        async function deleteNode(id) {
+    if (!confirm('Yakin ingin menghapus node ini?')) return;
+
+    const response = await fetch(`/api/nodes/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!response.ok) {
+        alert("Gagal menghapus node.");
+        return;
+    }
+
+    nodes = nodes.filter(n => n.id !== id);
+    updateAll();
+    alert('Node berhasil dihapus!');
+}
+
 
         // Modal functions
         function openAddModal() {
@@ -584,10 +653,12 @@ async function deleteNode(id) {
 
         // Update all displays
         function updateAll() {
+            console.log('Updating with nodes:', nodes); // ✅ Debug check
             updateMapMarkers();
             updateStatusList();
             updateNodesTable();
         }
+
 
         // Refresh map
         function refreshMap() {
@@ -634,14 +705,12 @@ async function deleteNode(id) {
         });
 
         // Initialize everything when page loads
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             initMap();
-            updateStatusList();
-            updateNodesTable();
-
-            // Auto refresh every 30 seconds
+            fetchNodes(); // ✅ Ini akan load data dan memanggil updateAll()
             setInterval(refreshMap, 30000);
         });
+
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
