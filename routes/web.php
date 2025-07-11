@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ManageController;
+use App\Http\Controllers\DeviceController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -15,9 +15,10 @@ Route::get('/dashboard', function () {
 
 
 
+
 Route::middleware(['auth'])->group(function () {
-    Route::get('/manage', [ManageController::class, 'index'])->name('manage.index');
-    Route::get('/api/extensions', [ManageController::class, 'getExtensionsStatus']);
+    Route::get('/manage', [DeviceController::class, 'index'])->name('manage');
+    Route::resource('devices', DeviceController::class)->except(['index']);
 });
 
 

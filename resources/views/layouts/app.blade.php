@@ -43,9 +43,15 @@
                 animation: blink 1s infinite;
             }
         </style>
-         
+         <!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+
+<!-- Leaflet Draw CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
         @stack('styles')
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        
     </head>
     <body class="font-sans antialiased bg-white">
         <div class="min-h-screen">

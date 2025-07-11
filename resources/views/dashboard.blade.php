@@ -171,136 +171,147 @@
     </div>
 
     @push('scripts')
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Initialize map
-            // Initialize map
-            var map = L.map('map').setView([-8.173358, 112.684885], 17);
+<!-- Leaflet JS & Draw -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
 
-            // Tile Layer
-            L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&key=YOUR_API_KEY', {
-                maxZoom: 20,
-                attribution: 'Map data © Google'
-            }).addTo(map);
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const map = initMap();
 
+    // Sample data
+    const nodes = [
+        { 
+            name: 'Gedung A', 
+            coords: [-8.173500, 112.684700], 
+            status: 'online',
+            ip: '192.168.1.101',
+            lastPing: '2s ago',
+            uptime: '99.8%'
+        },
+        { 
+            name: 'Gedung B', 
+            coords: [-8.173100, 112.684200], 
+            status: 'offline',
+            ip: '192.168.1.102',
+            lastPing: '5m ago',
+            uptime: '85.2%'
+        },
+        { 
+            name: 'Gedung C', 
+            coords: [-8.172800, 112.685000], 
+            status: 'online',
+            ip: '192.168.1.103',
+            lastPing: '1s ago',
+            uptime: '99.9%'
+        },
+    ];
 
-            // Phone nodes data
-            const nodes = [
-                { 
-                    name: 'Gedung A', 
-                    coords: [-8.173500, 112.684700], 
-                    status: 'online',
-                    ip: '192.168.1.101',
-                    lastPing: '2s ago',
-                    uptime: '99.8%'
-                },
-                { 
-                    name: 'Gedung B', 
-                    coords: [-8.173100, 112.684200], 
-                    status: 'offline',
-                    ip: '192.168.1.102',
-                    lastPing: '5m ago',
-                    uptime: '85.2%'
-                },
-                { 
-                    name: 'Gedung C', 
-                    coords: [-8.172800, 112.685000], 
-                    status: 'online',
-                    ip: '192.168.1.103',
-                    lastPing: '1s ago',
-                    uptime: '99.9%'
-                },
-            ];
+    // Add markers
+    nodes.forEach(function(node) {
+        const color = node.status === 'online' ? '#10b981' :
+                      node.status === 'offline' ? '#ef4444' : '#f59e0b';
 
-            // Add markers to map
-            nodes.forEach(function(node) {
-                const color = node.status === 'online' ? '#10b981' : '#ef4444';
-                const pulseClass = node.status === 'online' ? 'animate-pulse' : 'animate-blink';
+        const marker = L.circleMarker(node.coords, {
+            radius: 12,
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.8,
+            weight: 3
+        }).addTo(map);
 
-                const marker = L.circleMarker(node.coords, {
-                    radius: 12,
-                    color: color,
-                    fillColor: color,
-                    fillOpacity: 0.8,
-                    weight: 3
-                }).addTo(map);
-
-                const popupContent = `
-                    <div class="font-sans p-2">
-                        <h4 class="text-lg font-semibold text-gray-800 mb-2">${node.name}</h4>
-                        <div class="space-y-1 text-sm">
-                            <div class="flex justify-between">
-                                <span>Status:</span>
-                                <span class="font-medium ${node.status === 'online' ? 'text-green-600' : 'text-red-600'}">${node.status}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span>IP:</span>
-                                <span class="font-mono">${node.ip}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span>Last Ping:</span>
-                                <span>${node.lastPing}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span>Uptime:</span>
-                                <span class="font-medium">${node.uptime}</span>
-                            </div>
-                        </div>
+        const popupContent = `
+            <div class="font-sans p-2">
+                <h4 class="text-lg font-semibold text-gray-800 mb-2">${node.name}</h4>
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between">
+                        <span>Status:</span>
+                        <span class="font-medium ${node.status === 'online' ? 'text-green-600' : (node.status === 'offline' ? 'text-red-600' : 'text-yellow-600')}">${node.status}</span>
                     </div>
-                `;
+                    <div class="flex justify-between">
+                        <span>IP:</span>
+                        <span class="font-mono">${node.ip}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Last Ping:</span>
+                        <span>${node.lastPing}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Uptime:</span>
+                        <span class="font-medium">${node.uptime}</span>
+                    </div>
+                </div>
+            </div>
+        `;
 
-                marker.bindPopup(popupContent);
-            });
+        marker.bindPopup(popupContent);
+    });
 
-            // Drawing controls
-            var drawnItems = new L.FeatureGroup();
-            map.addLayer(drawnItems);
+    // Drawing tools
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
 
-            var drawControl = new L.Control.Draw({
-                edit: {
-                    featureGroup: drawnItems
-                },
-                draw: {
-                    polygon: true,
-                    polyline: true,
-                    rectangle: true,
-                    circle: false,
-                    marker: true
-                }
-            });
-            map.addControl(drawControl);
+    const drawControl = new L.Control.Draw({
+        edit: {
+            featureGroup: drawnItems
+        },
+        draw: {
+            polygon: true,
+            polyline: true,
+            rectangle: true,
+            circle: false,
+            marker: true
+        }
+    });
+    map.addControl(drawControl);
 
-            map.on('draw:created', function (e) {
-                var layer = e.layer;
-                drawnItems.addLayer(layer);
+    map.on('draw:created', function (e) {
+        const layer = e.layer;
+        drawnItems.addLayer(layer);
+        const geojson = layer.toGeoJSON();
+        console.log('GeoJSON hasil gambar:', JSON.stringify(geojson));
+    });
 
-                var geojson = layer.toGeoJSON();
-                console.log('GeoJSON hasil gambar:', JSON.stringify(geojson));
-            });
+    // Refresh button
+    window.refreshMap = function () {
+        location.reload();
+    };
 
-            // Auto refresh functionality
-            function refreshMap() {
-                location.reload();
-            }
+    // Auto-update dummy (every 30s)
+    setInterval(function () {
+        console.log('Auto refresh status node...');
+        // TODO: fetch('/api/nodes')...
+    }, 30000);
+});
 
-            // Make refresh function global
-            window.refreshMap = refreshMap;
+function initMap() {
+    const map = L.map('map').setView([-8.173358, 112.684885], 17);
 
-            // Auto update every 30 seconds
-            setInterval(function() {
-                // Update timestamps and status
-                updatePhoneStatus();
-            }, 30000);
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 20,
+        attribution: '© OpenStreetMap contributors'
+    });
 
-            function updatePhoneStatus() {
-                // This would typically make an AJAX call to get real-time data
-                console.log('Updating phone status...');
-            }
-        });
-    </script>
-    @endpush
+    const googleLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&key=YOUR_API_KEY', {
+        maxZoom: 20,
+        attribution: 'Map data © Google'
+    });
+
+    // Set default
+    osmLayer.addTo(map);
+
+    // Basemap switcher
+    const baseMaps = {
+        "OpenStreetMap": osmLayer,
+        "Google Satellite": googleLayer
+    };
+
+    L.control.layers(baseMaps).addTo(map);
+
+    return map;
+}
+</script>
+@endpush
+
 </x-app-layout>
